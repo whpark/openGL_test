@@ -1,180 +1,176 @@
 // openGL_test.cpp : Defines the entry point for the application.
 //
 
-#include "framework.h"
+#include "pch.h"
 #include "openGL_test.h"
 
 #define MAX_LOADSTRING 100
 
 // Global Variables:
-HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+GLFWwindow* window{};
 
-// Forward declarations of functions included in this code module:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+//using namespace std;
+namespace stdc = std::chrono;
+namespace stdfs = std::filesystem;
+
+GLuint LoadShaders(stdfs::path const& pathVertexFile, stdfs::path const& pathFragmentFile);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
+                     [[maybe_unused]] _In_opt_ HINSTANCE hPrevInstance,
+                     [[maybe_unused]] _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
-
-    // TODO: Place code here.
-
-    // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_OPENGLTEST, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
-
-    // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
+    if (!glfwInit()) {
+        OutputDebugStringA("FAILED to initialize GLFW\n");
+        return -1;
     }
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_OPENGLTEST));
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, true);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    MSG msg;
-
-    // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
+    window = glfwCreateWindow(1024, 768, "openGL", nullptr, nullptr);
+    if (!window) {
+        OutputDebugStringA("Failed to open GLFW window. If you have only an Intel GPU, they are not 3.3 compatible.\n");
+        glfwTerminate();
+        return -1;
+    }
+    if (auto hWnd = glfwGetWin32Window(window)) {
+        auto style = GetWindowLong(hWnd, GWL_STYLE);
+        style |= (CS_HREDRAW|CS_VREDRAW);
+        SetWindowLong(hWnd, GWL_STYLE, style);
     }
 
-    return (int) msg.wParam;
-}
+    glfwMakeContextCurrent(window);
 
-
-
-//
-//  FUNCTION: MyRegisterClass()
-//
-//  PURPOSE: Registers the window class.
-//
-ATOM MyRegisterClass(HINSTANCE hInstance)
-{
-    WNDCLASSEXW wcex;
-
-    wcex.cbSize = sizeof(WNDCLASSEX);
-
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_OPENGLTEST));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_OPENGLTEST);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
-
-    return RegisterClassExW(&wcex);
-}
-
-//
-//   FUNCTION: InitInstance(HINSTANCE, int)
-//
-//   PURPOSE: Saves instance handle and creates main window
-//
-//   COMMENTS:
-//
-//        In this function, we save the instance handle in a global variable and
-//        create and display the main program window.
-//
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
-   hInst = hInstance; // Store instance handle in our global variable
-
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
-
-   return TRUE;
-}
-
-//
-//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  PURPOSE: Processes messages for the main window.
-//
-//  WM_COMMAND  - process the application menu
-//  WM_PAINT    - Paint the main window
-//  WM_DESTROY  - post a quit message and return
-//
-//
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message)
-    {
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // Parse the menu selections:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
-            EndPaint(hWnd, &ps);
-        }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
+    if (glewInit() != GLEW_OK) {
+        OutputDebugStringA("Failed to Initialize GLEW\n");
+        glfwTerminate();
+        return -1;
     }
+
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+
+    glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+
+    GLuint VertexArrayID;
+    glGenVertexArrays(1, &VertexArrayID);
+    glBindVertexArray(VertexArrayID);
+
+    std::vector<float> data{
+        -1.0f, -1.f, 0.,
+        1.0f, -1.f, 0.,
+        0.0f,  1.f, 0.,
+    };
+    //cv::Mat mat = cv::Mat::zeros(3, 1, CV_32FC3);
+    //mat.at<cv::Vec3f>(0, 0) = { -1.0f, -1.f, 0., };
+    //mat.at<cv::Vec3f>(1, 0) = {  1.0f, -1.f, 0., };
+    //mat.at<cv::Vec3f>(2, 0) = {  0.0f,  1.f, 0., };
+
+    GLuint vertex_buffer;
+    glGenBuffers(1, &vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    //glBufferData(GL_ARRAY_BUFFER, mat.rows()*mat.cols()*mat.channel()*mat.elemSize1(), mat.ptr(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(data[0]), data.data(), GL_STATIC_DRAW);
+
+    GLuint idProgram = LoadShaders(L"simpleVertexShader.vertexshader", L"simpleFragmentShader.fragmentshader");
+
+    auto t0 = stdc::steady_clock::now();
+    do {
+        auto t1 = stdc::steady_clock::now();
+        auto ts = t1-t0;
+        t0 = t1;
+        OutputDebugStringA(std::format("{}\n", stdc::duration_cast<stdc::milliseconds>(ts)).c_str());
+
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+        glUseProgram(idProgram);
+
+        // Draw...
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDisableVertexAttribArray(0);
+
+        glfwSwapBuffers(window);
+        //glfwPollEvents();
+        glfwWaitEventsTimeout(0.060);
+
+        std::this_thread::sleep_until(t1+60ms);
+    } while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS and glfwWindowShouldClose(window) == 0);
+
+    glfwTerminate();
+
     return 0;
 }
 
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
+GLuint LoadShaders(stdfs::path const& pathVertexFile, stdfs::path const& pathFragmentFile) {
+    GLuint idVertexShader = glCreateShader(GL_VERTEX_SHADER);
+    GLuint idFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
+    std::string strVertexShaderCode;
+    if (std::ifstream streamVertexShader(pathVertexFile, std::ios::binary); (bool)streamVertexShader) {
+        std::stringstream sstr;
+        sstr << streamVertexShader.rdbuf();
+        strVertexShaderCode = sstr.str();
     }
-    return (INT_PTR)FALSE;
+    else {
+        OutputDebugString(std::format(L"파일 {}를 읽을 수 없습니다.\n", pathVertexFile.wstring()).c_str());
+        return 0;
+    }
+
+    std::string strFragmentShaderCode;
+    if (std::ifstream streamFragmentShader(pathFragmentFile, std::ios::binary); (bool)streamFragmentShader) {
+        std::stringstream sstr;
+        sstr << streamFragmentShader.rdbuf();
+        strFragmentShaderCode = sstr.str();
+    }
+
+    auto InitShader = [](stdfs::path const& path, int idShader, std::string const& strShaderCode) {
+        GLint result{}, nInfoLog{};
+
+        // vertex shader
+        OutputDebugString(std::format(L"Compiling shader : {}\n", path.wstring()).c_str());
+        const char* pszSource = strShaderCode.c_str();
+        glShaderSource(idShader, 1, &pszSource, nullptr);
+        glCompileShader(idShader);
+
+        glGetShaderiv(idShader, GL_COMPILE_STATUS, &result);
+        glGetShaderiv(idShader, GL_INFO_LOG_LENGTH, &nInfoLog);
+        if (nInfoLog > 0) {
+            std::string strErrorMessage(nInfoLog+1, '\n');
+            glGetShaderInfoLog(idShader, nInfoLog, nullptr, strErrorMessage.data());
+            OutputDebugStringA(strErrorMessage.c_str());
+        }
+    };
+    InitShader(pathVertexFile, idVertexShader, strVertexShaderCode);
+    InitShader(pathFragmentFile, idFragmentShader, strFragmentShaderCode);
+
+    // 프로그램에 링크
+    OutputDebugStringA("Linking program\n");
+    GLuint idProgram = glCreateProgram();
+    glAttachShader(idProgram, idVertexShader);
+    glAttachShader(idProgram, idFragmentShader);
+    glLinkProgram(idProgram);
+
+    GLint result{}, nInfoLog{};
+    glGetProgramiv(idProgram, GL_LINK_STATUS, &result);
+    glGetProgramiv(idProgram, GL_INFO_LOG_LENGTH, &nInfoLog);
+    if (nInfoLog > 0) {
+        std::string strLogMessage(nInfoLog+1, '\n');
+        glGetProgramInfoLog(idProgram, nInfoLog, nullptr, strLogMessage.data());
+        OutputDebugStringA(strLogMessage.c_str());
+    }
+
+    glDetachShader(idProgram, idVertexShader);
+    glDetachShader(idProgram, idFragmentShader);
+
+    glDeleteShader(idVertexShader);
+    glDeleteShader(idFragmentShader);
+
+    return idProgram;
 }
